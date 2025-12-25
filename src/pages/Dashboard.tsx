@@ -13,7 +13,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate('/auth');
+      navigate('/');
     }
   }, [user, authLoading, navigate]);
 
@@ -45,7 +45,8 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     logout();
-    navigate('/auth');
+    resetAssessment();
+    navigate('/');
   };
 
   const progressPercentage = progress 
@@ -69,7 +70,7 @@ export default function Dashboard() {
             </span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              Start Over
             </Button>
           </div>
         </div>
@@ -80,7 +81,7 @@ export default function Dashboard() {
         <div className="animate-fade-in">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Welcome, {user.name.split(' ')[0]}!
+              Welcome, {user.name}!
             </h1>
             <p className="text-muted-foreground">
               Discover your unique strengths profile through our comprehensive assessment.
