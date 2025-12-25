@@ -18,7 +18,7 @@ export default function Results() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate('/auth');
+      navigate('/');
     }
   }, [user, authLoading, navigate]);
 
@@ -76,8 +76,8 @@ export default function Results() {
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Title */}
         <div className="text-center mb-8 animate-fade-in">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Your Strengths Profile</h1>
-          <p className="text-muted-foreground">{user.name} • Completed {new Date(results.completedAt).toLocaleDateString()}</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{user.name}'s Strengths Report</h1>
+          <p className="text-muted-foreground">Completed {new Date(results.completedAt).toLocaleDateString()}</p>
         </div>
 
         {/* Top 5 Summary */}
