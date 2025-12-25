@@ -77,10 +77,8 @@ export default function Assessment() {
   };
 
   const handleComplete = () => {
-    const result = completeAssessment();
-    if (result) {
-      navigate('/results');
-    }
+    completeAssessment();
+    navigate('/results');
   };
 
   return (
@@ -168,7 +166,7 @@ export default function Assessment() {
             Previous
           </Button>
 
-          {isLastQuestion && currentAnswer !== undefined ? (
+          {isLastQuestion && isComplete ? (
             <Button onClick={handleComplete} className="px-8">
               Submit Assessment
             </Button>
