@@ -57,15 +57,11 @@ export default function Assessment() {
 
   const currentIndex = progress.currentQuestionIndex;
   const answeredCount = progress.answers.length;
-  const progressPercentage = (answeredCount / totalQuestions) * 100;
+  const isLastQuestion = currentIndex === totalQuestions - 1;
+  const progressPercentage = ((currentIndex + 1) / totalQuestions) * 100;
 
   const handleAnswer = (value: number) => {
     answerQuestion(currentQuestion.id, value);
-    
-    // Auto-advance to next question
-    if (currentIndex < totalQuestions - 1) {
-      setTimeout(() => goToQuestion(currentIndex + 1), 200);
-    }
   };
 
   const handlePrevious = () => {
@@ -172,15 +168,15 @@ export default function Assessment() {
             Previous
           </Button>
 
-          {isComplete ? (
+          {isLastQuestion && currentAnswer !== undefined ? (
             <Button onClick={handleComplete} className="px-8">
-              View Results
+              Submit Assessment
             </Button>
           ) : (
             <Button
               variant="outline"
               onClick={handleNext}
-              disabled={currentIndex === totalQuestions - 1}
+              disabled={!currentAnswer || isLastQuestion}
             >
               Next
               <ChevronRight className="w-4 h-4 ml-1" />
