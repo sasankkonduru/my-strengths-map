@@ -5,8 +5,9 @@ import { useAssessment } from '@/hooks/useAssessment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, ChevronLeft, ChevronRight, Home, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LogoMark } from '@/components/Logo';
 
 const LIKERT_OPTIONS = [
   { value: 1, label: 'Strongly Disagree' },
@@ -88,7 +89,7 @@ export default function Assessment() {
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary" />
+              <LogoMark className="scale-75" />
             </div>
             <span className="font-medium text-sm text-foreground">Assessment</span>
           </div>
