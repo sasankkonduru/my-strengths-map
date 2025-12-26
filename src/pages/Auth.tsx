@@ -84,8 +84,8 @@ export default function Auth() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <Sparkles className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Strengths Insight</h1>
-          <p className="text-muted-foreground mt-2">Discover your unique strengths profile</p>
+          <h1 className="text-3xl font-bold text-foreground">IMPROVÉ</h1>
+          <p className="text-muted-foreground mt-2">Know your strengths. Improve with intention</p>
         </div>
 
         <Card className="border-border/50 shadow-lg">
