@@ -4,13 +4,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAssessment } from '@/hooks/useAssessment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Home, Download, RotateCcw, Loader2 } from 'lucide-react';
+import { Sparkles, Home, Download, RotateCcw, Loader2 } from 'lucide-react';
 import { DomainGrid } from '@/components/results/DomainGrid';
 import { StrengthsChart } from '@/components/results/StrengthsChart';
 import { TopStrengthsReport } from '@/components/results/TopStrengthsReport';
 import { DOMAIN_LABELS } from '@/data/strengths';
 import { Domain } from '@/types/strengths';
-import { Logo, LogoMark } from '@/components/Logo';
 
 export default function Results() {
   const { user, isLoading: authLoading } = useAuth();
@@ -58,9 +57,9 @@ export default function Results() {
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <LogoMark className="scale-75" />
+              <Sparkles className="w-4 h-4 text-primary" />
             </div>
-            <Logo size="sm" />
+            <span className="font-medium text-foreground">Your Results</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleDownloadPDF}>

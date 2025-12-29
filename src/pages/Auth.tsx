@@ -4,9 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Phone, RefreshCw } from 'lucide-react';
+import { Sparkles, ArrowRight, Phone, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { Logo, LogoMark } from '@/components/Logo';
+
 export default function Auth() {
   const [username, setUsernameInput] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -82,9 +82,9 @@ export default function Auth() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <LogoMark />
+            <Sparkles className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold"><Logo size="lg" /></h1>
+          <h1 className="text-3xl font-bold text-foreground">IMPROVÉ</h1>
           <p className="text-muted-foreground mt-2">Know your strengths. Improve with intention</p>
         </div>
 
