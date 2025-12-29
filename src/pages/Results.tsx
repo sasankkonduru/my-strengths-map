@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAssessment } from '@/hooks/useAssessment';
@@ -10,11 +10,15 @@ import { StrengthsChart } from '@/components/results/StrengthsChart';
 import { TopStrengthsReport } from '@/components/results/TopStrengthsReport';
 import { DOMAIN_LABELS } from '@/data/strengths';
 import { Domain } from '@/types/strengths';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export default function Results() {
   const { user, isLoading: authLoading } = useAuth();
   const { results, resetAssessment, isLoading: assessmentLoading } = useAssessment();
   const navigate = useNavigate();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -41,8 +45,53 @@ export default function Results() {
   const top5 = results.scores.slice(0, 5);
   const top10 = results.scores.slice(0, 10);
 
-  const handleDownloadPDF = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!contentRef.current || isExporting) return;
+    
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      
+      let heightLeft = imgHeight * ratio;
+      let position = 0;
+      
+      // First page
+      pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
+      heightLeft -= pdfHeight;
+      
+      // Additional pages if needed
+      while (heightLeft > 0) {
+        position -= pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
+        heightLeft -= pdfHeight;
+      }
+      
+      pdf.save(`${user?.name || 'Strengths'}-Report.pdf`);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleRetake = () => {
@@ -51,7 +100,7 @@ export default function Results() {
   };
 
   return (
-    <div className="min-h-screen bg-background print:bg-white">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-10 print:hidden">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -62,8 +111,12 @@ export default function Results() {
             <span className="font-medium text-foreground">Your Results</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
-              <Download className="w-4 h-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isExporting}>
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
               PDF
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
@@ -73,7 +126,7 @@ export default function Results() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main ref={contentRef} className="container mx-auto px-4 py-8 max-w-6xl bg-background">
         {/* Title */}
         <div className="text-center mb-8 animate-fade-in">
           <h1 className="text-3xl font-bold text-foreground mb-2">{user.name}'s Strengths Report</h1>
