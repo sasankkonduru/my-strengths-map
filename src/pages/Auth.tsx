@@ -82,7 +82,7 @@ export default function Auth() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground">
-            IMPROV<span className="text-primary">É</span>
+            IMPROV<span className="text-primary">É</span>.
           </h1>
           <p className="text-muted-foreground mt-2 italic">Know your strengths. Improve with intention</p>
         </div>
