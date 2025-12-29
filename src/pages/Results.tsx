@@ -46,49 +46,56 @@ export default function Results() {
   const top10 = results.scores.slice(0, 10);
 
   const handleDownloadPDF = async () => {
-    if (!contentRef.current || isExporting) return;
+    if (isExporting) return;
     
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      
-      let heightLeft = imgHeight * ratio;
-      let position = 0;
-      
-      // First page
-      pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
-      heightLeft -= pdfHeight;
-      
-      // Additional pages if needed
-      while (heightLeft > 0) {
-        position -= pdfHeight;
-        pdf.addPage();
+      if (contentRef.current) {
+        const canvas = await html2canvas(contentRef.current, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const imgX = (pdfWidth - imgWidth * ratio) / 2;
+        
+        let heightLeft = imgHeight * ratio;
+        let position = 0;
+        
+        // First page
         pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
         heightLeft -= pdfHeight;
+        
+        // Additional pages if needed
+        while (heightLeft > 0) {
+          position -= pdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
+          heightLeft -= pdfHeight;
+        }
+        
+        pdf.save(`${user?.name || 'Strengths'}-Report.pdf`);
+      } else {
+        // Fallback to browser print
+        window.print();
       }
-      
-      pdf.save(`${user?.name || 'Strengths'}-Report.pdf`);
     } catch (error) {
-      console.error('PDF export failed:', error);
+      console.error('PDF export failed, falling back to print:', error);
+      // Fallback to browser print on any error
+      window.print();
     } finally {
       setIsExporting(false);
     }
