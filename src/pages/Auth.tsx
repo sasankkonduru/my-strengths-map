@@ -81,11 +81,10 @@ export default function Auth() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Sparkles className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">IMPROVÉ</h1>
-          <p className="text-muted-foreground mt-2">Know your strengths. Improve with intention</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            IMPROV<span className="text-primary">É</span>
+          </h1>
+          <p className="text-muted-foreground mt-2 italic">Know your strengths. Improve with intention</p>
         </div>
 
         <Card className="border-border/50 shadow-lg">
