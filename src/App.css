@@ -5,46 +5,6 @@
   text-align: center;
 }
 
-/* Print styles for PDF export - force color rendering */
-@media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-
-  body {
-    background: white !important;
-  }
-
-  /* Ensure backgrounds render */
-  .bg-primary\/5,
-  .bg-muted\/50,
-  .bg-card,
-  .bg-background,
-  [class*="bg-domain-"] {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Force border colors */
-  [class*="border-"] {
-    border-color: inherit !important;
-  }
-
-  /* Ensure chart colors render */
-  svg, canvas {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Domain colors for strength blocks */
-  .bg-domain-executing { background-color: hsl(var(--domain-executing)) !important; }
-  .bg-domain-influencing { background-color: hsl(var(--domain-influencing)) !important; }
-  .bg-domain-relationship { background-color: hsl(var(--domain-relationship)) !important; }
-  .bg-domain-strategic { background-color: hsl(var(--domain-strategic)) !important; }
-}
-
 .logo {
   height: 6em;
   padding: 1.5em;
