@@ -52,7 +52,9 @@ export default function Results() {
     try {
       if (contentRef.current) {
         const element = contentRef.current;
-        const elementWidth = element.offsetWidth;
+        
+        // Wait for content to be fully rendered
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         const pdf = new jsPDF({
           orientation: 'portrait',
@@ -62,85 +64,113 @@ export default function Results() {
         
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10; // mm margin
-        const headerHeight = 15; // mm for header on first page
+        const margin = 10;
+        const headerHeight = 18;
         const usableWidth = pdfWidth - (margin * 2);
+        const firstPageUsableHeight = pdfHeight - margin - headerHeight - margin;
+        const regularPageUsableHeight = pdfHeight - (margin * 2);
         
-        // Capture entire content as one image
-        const scale = 2;
+        // Capture entire content as one high-quality image
         const canvas = await html2canvas(element, {
-          scale: scale,
+          scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
           windowHeight: element.scrollHeight,
+          windowWidth: element.scrollWidth,
         });
         
-        const imgData = canvas.toDataURL('image/png');
         const imgWidth = usableWidth;
         const imgHeight = (canvas.height / canvas.width) * usableWidth;
+        const pxPerMm = canvas.height / imgHeight;
         
-        // Calculate page content heights
-        const firstPageUsableHeight = pdfHeight - margin - headerHeight - margin;
-        const subsequentPageUsableHeight = pdfHeight - (margin * 2);
+        // Find all block elements that should not be split
+        const blocks = element.querySelectorAll('.pdf-block, [class*="Card"], [class*="card"]');
+        const elementRect = element.getBoundingClientRect();
+        
+        // Build safe break points based on block boundaries
+        const breakPoints: number[] = [0];
+        blocks.forEach((block) => {
+          const blockRect = block.getBoundingClientRect();
+          const relativeTop = blockRect.top - elementRect.top;
+          const relativeBottom = blockRect.bottom - elementRect.top;
+          // Convert to mm coordinates
+          const topMm = (relativeTop / element.scrollHeight) * imgHeight;
+          const bottomMm = (relativeBottom / element.scrollHeight) * imgHeight;
+          breakPoints.push(topMm, bottomMm);
+        });
+        breakPoints.push(imgHeight);
+        
+        // Sort and deduplicate break points
+        const uniqueBreaks = [...new Set(breakPoints)].sort((a, b) => a - b);
         
         // Add header on first page
-        pdf.setFontSize(18);
+        pdf.setFontSize(16);
         pdf.setFont('helvetica', 'bold');
-        const headerText = `${user?.name || 'Your'}'s IMPROVÉ Report`;
+        pdf.setTextColor(40, 40, 40);
+        const headerText = `${user?.name || 'Your'}'s Final Results Strengths Report`;
         const textWidth = pdf.getTextWidth(headerText);
-        pdf.text(headerText, (pdfWidth - textWidth) / 2, margin + 8);
+        pdf.text(headerText, (pdfWidth - textWidth) / 2, margin + 10);
         
-        // Calculate how much of the image fits on each page
-        let yPositionInImage = 0;
+        let currentYMm = 0;
         let pageNum = 0;
         
-        while (yPositionInImage < imgHeight) {
+        while (currentYMm < imgHeight) {
+          const isFirstPage = pageNum === 0;
+          const pageUsableHeightMm = isFirstPage ? firstPageUsableHeight : regularPageUsableHeight;
+          const yOffset = isFirstPage ? margin + headerHeight : margin;
+          
+          // Find the best break point that fits within this page
+          let nextBreakMm = currentYMm + pageUsableHeightMm;
+          let bestBreak = currentYMm + pageUsableHeightMm;
+          
+          // Find largest break point that fits on this page
+          for (const bp of uniqueBreaks) {
+            if (bp > currentYMm && bp <= currentYMm + pageUsableHeightMm) {
+              bestBreak = bp;
+            }
+          }
+          
+          // If best break is at current position, force progress
+          if (bestBreak <= currentYMm) {
+            bestBreak = Math.min(currentYMm + pageUsableHeightMm, imgHeight);
+          }
+          
+          const sliceHeightMm = bestBreak - currentYMm;
+          const sliceHeightPx = sliceHeightMm * pxPerMm;
+          const sourceYPx = currentYMm * pxPerMm;
+          
           if (pageNum > 0) {
             pdf.addPage();
           }
           
-          const currentPageUsableHeight = pageNum === 0 ? firstPageUsableHeight : subsequentPageUsableHeight;
-          const yOffset = pageNum === 0 ? margin + headerHeight : margin;
+          // Create slice canvas for this page
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = Math.ceil(sliceHeightPx);
+          const sliceCtx = sliceCanvas.getContext('2d');
           
-          // Calculate the portion of the image to show on this page
-          const remainingHeight = imgHeight - yPositionInImage;
-          const heightToRender = Math.min(currentPageUsableHeight, remainingHeight);
-          
-          // Calculate source coordinates in the canvas
-          const sourceY = (yPositionInImage / imgHeight) * canvas.height;
-          const sourceHeight = (heightToRender / imgHeight) * canvas.height;
-          
-          // Create a temporary canvas for this page section
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = canvas.width;
-          tempCanvas.height = sourceHeight;
-          const tempCtx = tempCanvas.getContext('2d');
-          
-          if (tempCtx) {
-            // Fill with white background
-            tempCtx.fillStyle = '#ffffff';
-            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+          if (sliceCtx) {
+            sliceCtx.fillStyle = '#ffffff';
+            sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
             
-            // Draw the section of the original canvas
-            tempCtx.drawImage(
+            sliceCtx.drawImage(
               canvas,
-              0, sourceY, canvas.width, sourceHeight,
-              0, 0, canvas.width, sourceHeight
+              0, Math.floor(sourceYPx), canvas.width, Math.ceil(sliceHeightPx),
+              0, 0, canvas.width, Math.ceil(sliceHeightPx)
             );
             
-            const sectionImgData = tempCanvas.toDataURL('image/png');
-            pdf.addImage(sectionImgData, 'PNG', margin, yOffset, imgWidth, heightToRender);
+            const sliceImgData = sliceCanvas.toDataURL('image/png');
+            pdf.addImage(sliceImgData, 'PNG', margin, yOffset, imgWidth, sliceHeightMm);
           }
           
-          yPositionInImage += heightToRender;
+          currentYMm = bestBreak;
           pageNum++;
           
-          // Safety limit to prevent infinite loops
           if (pageNum > 50) break;
         }
         
-        pdf.save(`${user?.name || 'Strengths'}-Report.pdf`);
+        pdf.save(`${user?.name || 'Strengths'}_Final_Report.pdf`);
       } else {
         window.print();
       }
