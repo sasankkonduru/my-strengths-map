@@ -51,14 +51,11 @@ export default function Results() {
     setIsExporting(true);
     try {
       if (contentRef.current) {
-        const canvas = await html2canvas(contentRef.current, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-        });
+        const element = contentRef.current;
+        const elementWidth = element.offsetWidth;
+        const elementHeight = element.scrollHeight;
         
-        const imgData = canvas.toDataURL('image/png');
+        // A4 dimensions in mm and pixels at 2x scale
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
@@ -67,34 +64,47 @@ export default function Results() {
         
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-        const imgX = (pdfWidth - imgWidth * ratio) / 2;
+        const margin = 10; // mm margin
+        const usableWidth = pdfWidth - (margin * 2);
+        const usableHeight = pdfHeight - (margin * 2);
         
-        let heightLeft = imgHeight * ratio;
-        let position = 0;
+        // Calculate scale to fit width
+        const scale = 2;
+        const ratio = usableWidth / (elementWidth / scale);
         
-        // First page
-        pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
-        heightLeft -= pdfHeight;
+        // Calculate page height in pixels (accounting for scale and ratio)
+        const pageHeightInPx = (usableHeight / ratio) * scale;
+        const totalPages = Math.ceil(elementHeight / pageHeightInPx);
         
-        // Additional pages if needed
-        while (heightLeft > 0) {
-          position -= pdfHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio);
-          heightLeft -= pdfHeight;
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) {
+            pdf.addPage();
+          }
+          
+          // Capture a section of the content
+          const canvas = await html2canvas(element, {
+            scale: scale,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            y: page * pageHeightInPx,
+            height: Math.min(pageHeightInPx, elementHeight - (page * pageHeightInPx)),
+            windowHeight: pageHeightInPx,
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = usableWidth;
+          const imgHeight = (canvas.height / canvas.width) * usableWidth;
+          
+          pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
         }
         
         pdf.save(`${user?.name || 'Strengths'}-Report.pdf`);
       } else {
-        // Fallback to browser print
         window.print();
       }
     } catch (error) {
       console.error('PDF export failed, falling back to print:', error);
-      // Fallback to browser print on any error
       window.print();
     } finally {
       setIsExporting(false);
