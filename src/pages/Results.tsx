@@ -53,9 +53,7 @@ export default function Results() {
       if (contentRef.current) {
         const element = contentRef.current;
         const elementWidth = element.offsetWidth;
-        const elementHeight = element.scrollHeight;
         
-        // A4 dimensions in mm and pixels at 2x scale
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
@@ -65,38 +63,81 @@ export default function Results() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const margin = 10; // mm margin
+        const headerHeight = 15; // mm for header on first page
         const usableWidth = pdfWidth - (margin * 2);
-        const usableHeight = pdfHeight - (margin * 2);
         
-        // Calculate scale to fit width
+        // Capture entire content as one image
         const scale = 2;
-        const ratio = usableWidth / (elementWidth / scale);
+        const canvas = await html2canvas(element, {
+          scale: scale,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowHeight: element.scrollHeight,
+        });
         
-        // Calculate page height in pixels (accounting for scale and ratio)
-        const pageHeightInPx = (usableHeight / ratio) * scale;
-        const totalPages = Math.ceil(elementHeight / pageHeightInPx);
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = usableWidth;
+        const imgHeight = (canvas.height / canvas.width) * usableWidth;
         
-        for (let page = 0; page < totalPages; page++) {
-          if (page > 0) {
+        // Calculate page content heights
+        const firstPageUsableHeight = pdfHeight - margin - headerHeight - margin;
+        const subsequentPageUsableHeight = pdfHeight - (margin * 2);
+        
+        // Add header on first page
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        const headerText = `${user?.name || 'Your'}'s IMPROVÉ Report`;
+        const textWidth = pdf.getTextWidth(headerText);
+        pdf.text(headerText, (pdfWidth - textWidth) / 2, margin + 8);
+        
+        // Calculate how much of the image fits on each page
+        let yPositionInImage = 0;
+        let pageNum = 0;
+        
+        while (yPositionInImage < imgHeight) {
+          if (pageNum > 0) {
             pdf.addPage();
           }
           
-          // Capture a section of the content
-          const canvas = await html2canvas(element, {
-            scale: scale,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            y: page * pageHeightInPx,
-            height: Math.min(pageHeightInPx, elementHeight - (page * pageHeightInPx)),
-            windowHeight: pageHeightInPx,
-          });
+          const currentPageUsableHeight = pageNum === 0 ? firstPageUsableHeight : subsequentPageUsableHeight;
+          const yOffset = pageNum === 0 ? margin + headerHeight : margin;
           
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = usableWidth;
-          const imgHeight = (canvas.height / canvas.width) * usableWidth;
+          // Calculate the portion of the image to show on this page
+          const remainingHeight = imgHeight - yPositionInImage;
+          const heightToRender = Math.min(currentPageUsableHeight, remainingHeight);
           
-          pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+          // Calculate source coordinates in the canvas
+          const sourceY = (yPositionInImage / imgHeight) * canvas.height;
+          const sourceHeight = (heightToRender / imgHeight) * canvas.height;
+          
+          // Create a temporary canvas for this page section
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = canvas.width;
+          tempCanvas.height = sourceHeight;
+          const tempCtx = tempCanvas.getContext('2d');
+          
+          if (tempCtx) {
+            // Fill with white background
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // Draw the section of the original canvas
+            tempCtx.drawImage(
+              canvas,
+              0, sourceY, canvas.width, sourceHeight,
+              0, 0, canvas.width, sourceHeight
+            );
+            
+            const sectionImgData = tempCanvas.toDataURL('image/png');
+            pdf.addImage(sectionImgData, 'PNG', margin, yOffset, imgWidth, heightToRender);
+          }
+          
+          yPositionInImage += heightToRender;
+          pageNum++;
+          
+          // Safety limit to prevent infinite loops
+          if (pageNum > 50) break;
         }
         
         pdf.save(`${user?.name || 'Strengths'}-Report.pdf`);
