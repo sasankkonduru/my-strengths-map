@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAssessment } from '@/hooks/useAssessment';
@@ -10,15 +10,12 @@ import { StrengthsChart } from '@/components/results/StrengthsChart';
 import { TopStrengthsReport } from '@/components/results/TopStrengthsReport';
 import { DOMAIN_LABELS } from '@/data/strengths';
 import { Domain } from '@/types/strengths';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 export default function Results() {
   const { user, isLoading: authLoading } = useAuth();
   const { results, resetAssessment, isLoading: assessmentLoading } = useAssessment();
   const navigate = useNavigate();
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -45,119 +42,13 @@ export default function Results() {
   const top5 = results.scores.slice(0, 5);
   const top10 = results.scores.slice(0, 10);
 
-  const handleDownloadPDF = async () => {
-    if (isExporting) return;
-    
-    setIsExporting(true);
-    try {
-      if (contentRef.current) {
-        const element = contentRef.current;
-        
-        // Wait for content to be fully rendered
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4',
-        });
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-        const headerHeight = 18;
-        const usableWidth = pdfWidth - (margin * 2);
-        
-        // Find all exportable components (Cards and major sections)
-        const exportableBlocks = element.querySelectorAll(':scope > .text-center, :scope > [class*="Card"], :scope > div > [class*="Card"], :scope > .space-y-6, :scope > .space-y-6 > [class*="Card"]');
-        
-        // Flatten to unique card elements
-        const allCards: Element[] = [];
-        
-        // Add title section
-        const titleSection = element.querySelector(':scope > .text-center');
-        if (titleSection) allCards.push(titleSection);
-        
-        // Add all direct Cards in main content
-        element.querySelectorAll(':scope > [class*="Card"]').forEach(card => {
-          if (!allCards.includes(card)) allCards.push(card);
-        });
-        
-        // Add cards from TopStrengthsReport (inside .space-y-6)
-        const detailedSection = element.querySelector(':scope > .space-y-6');
-        if (detailedSection) {
-          // Add the h2 heading
-          const heading = detailedSection.querySelector(':scope > h2');
-          if (heading) allCards.push(heading);
-          
-          // Add each card
-          detailedSection.querySelectorAll(':scope > [class*="Card"]').forEach(card => {
-            allCards.push(card);
-          });
-        }
-        
-        let isFirstPage = true;
-        
-        for (let i = 0; i < allCards.length; i++) {
-          const block = allCards[i] as HTMLElement;
-          
-          // Capture each block individually
-          const canvas = await html2canvas(block, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-          });
-          
-          const imgWidth = usableWidth;
-          const imgHeight = (canvas.height / canvas.width) * usableWidth;
-          const imgData = canvas.toDataURL('image/png');
-          
-          if (!isFirstPage) {
-            pdf.addPage();
-          }
-          
-          let yOffset = margin;
-          
-          // Add header on first page only
-          if (isFirstPage) {
-            pdf.setFontSize(16);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(40, 40, 40);
-            const headerText = `${user?.name || 'Your'}'s Final Results Strengths Report`;
-            const textWidth = pdf.getTextWidth(headerText);
-            pdf.text(headerText, (pdfWidth - textWidth) / 2, margin + 10);
-            yOffset = margin + headerHeight;
-            isFirstPage = false;
-          }
-          
-          // Check if image fits on page, if not scale it down (but maintain aspect ratio)
-          const availableHeight = pdfHeight - yOffset - margin;
-          let finalWidth = imgWidth;
-          let finalHeight = imgHeight;
-          
-          if (imgHeight > availableHeight) {
-            const scale = availableHeight / imgHeight;
-            finalWidth = imgWidth * scale;
-            finalHeight = availableHeight;
-          }
-          
-          // Center horizontally
-          const xOffset = (pdfWidth - finalWidth) / 2;
-          
-          pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
-        }
-        
-        pdf.save(`${user?.name || 'Strengths'}_Final_Report.pdf`);
-      } else {
-        window.print();
-      }
-    } catch (error) {
-      console.error('PDF export failed, falling back to print:', error);
+  const handleDownloadPDF = () => {
+    setIsPrinting(true);
+    // Allow React to re-render with the print header visible
+    setTimeout(() => {
       window.print();
-    } finally {
-      setIsExporting(false);
-    }
+      setIsPrinting(false);
+    }, 100);
   };
 
   const handleRetake = () => {
@@ -177,12 +68,8 @@ export default function Results() {
             <span className="font-medium text-foreground">Your Results</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isExporting}>
-              {isExporting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
-              )}
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+              <Download className="w-4 h-4 mr-2" />
               PDF
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
@@ -192,9 +79,17 @@ export default function Results() {
         </div>
       </header>
 
-      <main ref={contentRef} className="container mx-auto px-4 py-8 max-w-6xl bg-background">
+      <main className="container mx-auto px-4 py-8 max-w-6xl bg-background">
+        {/* Print-only header */}
+        <h1 
+          className="print-header hidden" 
+          style={{ display: isPrinting ? 'block' : 'none' }}
+        >
+          {user.name}'s Final Results Strengths Report
+        </h1>
+
         {/* Title */}
-        <div className="text-center mb-8 animate-fade-in">
+        <div className="text-center mb-8 animate-fade-in print-section">
           <h1 className="text-3xl font-bold text-foreground mb-2">{user.name}'s Strengths Report</h1>
           <p className="text-muted-foreground">Completed {new Date(results.completedAt).toLocaleDateString()}</p>
         </div>
