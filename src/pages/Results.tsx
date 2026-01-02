@@ -67,107 +67,85 @@ export default function Results() {
         const margin = 10;
         const headerHeight = 18;
         const usableWidth = pdfWidth - (margin * 2);
-        const firstPageUsableHeight = pdfHeight - margin - headerHeight - margin;
-        const regularPageUsableHeight = pdfHeight - (margin * 2);
         
-        // Capture entire content as one high-quality image
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowHeight: element.scrollHeight,
-          windowWidth: element.scrollWidth,
+        // Find all exportable components (Cards and major sections)
+        const exportableBlocks = element.querySelectorAll(':scope > .text-center, :scope > [class*="Card"], :scope > div > [class*="Card"], :scope > .space-y-6, :scope > .space-y-6 > [class*="Card"]');
+        
+        // Flatten to unique card elements
+        const allCards: Element[] = [];
+        
+        // Add title section
+        const titleSection = element.querySelector(':scope > .text-center');
+        if (titleSection) allCards.push(titleSection);
+        
+        // Add all direct Cards in main content
+        element.querySelectorAll(':scope > [class*="Card"]').forEach(card => {
+          if (!allCards.includes(card)) allCards.push(card);
         });
         
-        const imgWidth = usableWidth;
-        const imgHeight = (canvas.height / canvas.width) * usableWidth;
-        const pxPerMm = canvas.height / imgHeight;
-        
-        // Find all block elements that should not be split
-        const blocks = element.querySelectorAll('.pdf-block, [class*="Card"], [class*="card"]');
-        const elementRect = element.getBoundingClientRect();
-        
-        // Build safe break points based on block boundaries
-        const breakPoints: number[] = [0];
-        blocks.forEach((block) => {
-          const blockRect = block.getBoundingClientRect();
-          const relativeTop = blockRect.top - elementRect.top;
-          const relativeBottom = blockRect.bottom - elementRect.top;
-          // Convert to mm coordinates
-          const topMm = (relativeTop / element.scrollHeight) * imgHeight;
-          const bottomMm = (relativeBottom / element.scrollHeight) * imgHeight;
-          breakPoints.push(topMm, bottomMm);
-        });
-        breakPoints.push(imgHeight);
-        
-        // Sort and deduplicate break points
-        const uniqueBreaks = [...new Set(breakPoints)].sort((a, b) => a - b);
-        
-        // Add header on first page
-        pdf.setFontSize(16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(40, 40, 40);
-        const headerText = `${user?.name || 'Your'}'s Final Results Strengths Report`;
-        const textWidth = pdf.getTextWidth(headerText);
-        pdf.text(headerText, (pdfWidth - textWidth) / 2, margin + 10);
-        
-        let currentYMm = 0;
-        let pageNum = 0;
-        
-        while (currentYMm < imgHeight) {
-          const isFirstPage = pageNum === 0;
-          const pageUsableHeightMm = isFirstPage ? firstPageUsableHeight : regularPageUsableHeight;
-          const yOffset = isFirstPage ? margin + headerHeight : margin;
+        // Add cards from TopStrengthsReport (inside .space-y-6)
+        const detailedSection = element.querySelector(':scope > .space-y-6');
+        if (detailedSection) {
+          // Add the h2 heading
+          const heading = detailedSection.querySelector(':scope > h2');
+          if (heading) allCards.push(heading);
           
-          // Find the best break point that fits within this page
-          let nextBreakMm = currentYMm + pageUsableHeightMm;
-          let bestBreak = currentYMm + pageUsableHeightMm;
+          // Add each card
+          detailedSection.querySelectorAll(':scope > [class*="Card"]').forEach(card => {
+            allCards.push(card);
+          });
+        }
+        
+        let isFirstPage = true;
+        
+        for (let i = 0; i < allCards.length; i++) {
+          const block = allCards[i] as HTMLElement;
           
-          // Find largest break point that fits on this page
-          for (const bp of uniqueBreaks) {
-            if (bp > currentYMm && bp <= currentYMm + pageUsableHeightMm) {
-              bestBreak = bp;
-            }
-          }
+          // Capture each block individually
+          const canvas = await html2canvas(block, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
           
-          // If best break is at current position, force progress
-          if (bestBreak <= currentYMm) {
-            bestBreak = Math.min(currentYMm + pageUsableHeightMm, imgHeight);
-          }
+          const imgWidth = usableWidth;
+          const imgHeight = (canvas.height / canvas.width) * usableWidth;
+          const imgData = canvas.toDataURL('image/png');
           
-          const sliceHeightMm = bestBreak - currentYMm;
-          const sliceHeightPx = sliceHeightMm * pxPerMm;
-          const sourceYPx = currentYMm * pxPerMm;
-          
-          if (pageNum > 0) {
+          if (!isFirstPage) {
             pdf.addPage();
           }
           
-          // Create slice canvas for this page
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = Math.ceil(sliceHeightPx);
-          const sliceCtx = sliceCanvas.getContext('2d');
+          let yOffset = margin;
           
-          if (sliceCtx) {
-            sliceCtx.fillStyle = '#ffffff';
-            sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-            
-            sliceCtx.drawImage(
-              canvas,
-              0, Math.floor(sourceYPx), canvas.width, Math.ceil(sliceHeightPx),
-              0, 0, canvas.width, Math.ceil(sliceHeightPx)
-            );
-            
-            const sliceImgData = sliceCanvas.toDataURL('image/png');
-            pdf.addImage(sliceImgData, 'PNG', margin, yOffset, imgWidth, sliceHeightMm);
+          // Add header on first page only
+          if (isFirstPage) {
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(40, 40, 40);
+            const headerText = `${user?.name || 'Your'}'s Final Results Strengths Report`;
+            const textWidth = pdf.getTextWidth(headerText);
+            pdf.text(headerText, (pdfWidth - textWidth) / 2, margin + 10);
+            yOffset = margin + headerHeight;
+            isFirstPage = false;
           }
           
-          currentYMm = bestBreak;
-          pageNum++;
+          // Check if image fits on page, if not scale it down (but maintain aspect ratio)
+          const availableHeight = pdfHeight - yOffset - margin;
+          let finalWidth = imgWidth;
+          let finalHeight = imgHeight;
           
-          if (pageNum > 50) break;
+          if (imgHeight > availableHeight) {
+            const scale = availableHeight / imgHeight;
+            finalWidth = imgWidth * scale;
+            finalHeight = availableHeight;
+          }
+          
+          // Center horizontally
+          const xOffset = (pdfWidth - finalWidth) / 2;
+          
+          pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
         }
         
         pdf.save(`${user?.name || 'Strengths'}_Final_Report.pdf`);
