@@ -9,7 +9,7 @@ export function StrengthsChart({ scores }: StrengthsChartProps) {
   const maxScore = 25;
 
   return (
-    <div className="space-y-1 max-h-[600px] overflow-y-auto">
+    <div className="space-y-1 max-h-[600px] overflow-y-auto print:max-h-none print:overflow-visible">
       {scores.map((s, index) => {
         const percentage = (s.score / maxScore) * 100;
         const colors = DOMAIN_COLORS[s.strength.domain];

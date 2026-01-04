@@ -148,6 +148,15 @@
     break-inside: avoid;
   }
 
+  /* Disable all scroll containers for full content printing */
+  [class*="overflow-y-auto"],
+  [class*="overflow-x-auto"],
+  [class*="overflow-auto"],
+  [class*="max-h-"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   /* Allow natural page breaks between major sections */
   .print-section {
     page-break-before: auto;
